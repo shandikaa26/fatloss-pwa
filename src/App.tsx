@@ -18,7 +18,8 @@ import {
   saveWeightHistory, 
   getStoredSelectedDay, 
   saveSelectedDay, 
-  resetAllData 
+  resetAllData,
+  createEmptyDayLog
 } from './utils/storage';
 import { IOSHeader } from './components/iOSHeader';
 import { ActivityRings } from './components/ActivityRings';
@@ -57,18 +58,7 @@ export function App() {
 
   const currentWorkout = WORKOUT_PLANS.find((w) => w.day === selectedDay) || WORKOUT_PLANS[0];
   const currentMealPlan = MEAL_PLANS.find((m) => m.day === selectedDay) || MEAL_PLANS[0];
-  const currentLog = logs[selectedDay] || {
-    date: new Date().toISOString().split('T')[0],
-    dayNumber: selectedDay,
-    waterMl: 0,
-    steps: 0,
-    sleepHours: 7.5,
-    fatigueRating: 2,
-    sorenessRating: 2,
-    completedMeals: { breakfast: false, lunch: false, snack: false, dinner: false },
-    completedExercises: {},
-    workoutCompleted: false,
-  };
+  const currentLog = logs[selectedDay] || createEmptyDayLog(selectedDay);
 
   const handleUpdateCurrentLog = (newLog: DailyLog) => {
     setLogs((prev) => ({
@@ -90,30 +80,36 @@ export function App() {
     setSelectedDay(1);
   };
 
-  // Ring calculations
-  const totalSets = currentWorkout.exercises.reduce((acc, ex) => acc + ex.sets, 0);
+  // Safe Ring calculations
+  const totalSets = currentWorkout.exercises.reduce((acc, ex) => acc + (ex.sets || 3), 0);
   const doneSets = currentWorkout.exercises.reduce((acc, ex) => {
-    const arr = currentLog.completedExercises[ex.id] || [];
-    return acc + arr.filter(Boolean).length;
+    const arr = (currentLog.completedExercises && currentLog.completedExercises[ex.id]) || [];
+    return acc + (Array.isArray(arr) ? arr.filter(Boolean).length : 0);
   }, 0);
   const workoutProgress = totalSets > 0 ? doneSets / totalSets : 0;
 
   const mealsCheckedCount = [
-    currentLog.completedMeals.breakfast,
-    currentLog.completedMeals.lunch,
-    currentLog.completedMeals.snack,
-    currentLog.completedMeals.dinner,
+    !!currentLog.completedMeals?.breakfast,
+    !!currentLog.completedMeals?.lunch,
+    !!currentLog.completedMeals?.snack,
+    !!currentLog.completedMeals?.dinner,
   ].filter(Boolean).length;
   const mealProgress = mealsCheckedCount / 4;
 
-  const waterProgress = Math.min(currentLog.waterMl / (profile.targetWater * 1000), 1);
-  const stepsProgress = Math.min(currentLog.steps / profile.targetSteps, 1);
+  const safeWaterTarget = (profile?.targetWater || 2.5) * 1000;
+  const safeWaterLogged = currentLog.waterMl || 0;
+  const waterProgress = safeWaterTarget > 0 ? Math.min(safeWaterLogged / safeWaterTarget, 1) : 0;
+
+  const safeStepsTarget = profile?.targetSteps || 9000;
+  const safeStepsLogged = currentLog.steps || 0;
+  const stepsProgress = safeStepsTarget > 0 ? Math.min(safeStepsLogged / safeStepsTarget, 1) : 0;
+
   const habitProgress = (waterProgress + stepsProgress) / 2;
 
   // Count days with completed workouts
-  const completedDaysCount = Object.values(logs).filter((l) => l.workoutCompleted).length;
+  const completedDaysCount = Object.values(logs).filter((l) => !!l?.workoutCompleted).length;
 
-  // Calorie calculations
+  // Safe Calorie calculations
   const mealsList = [
     { key: 'breakfast', item: currentMealPlan.breakfast },
     { key: 'lunch', item: currentMealPlan.lunch },
@@ -122,8 +118,8 @@ export function App() {
   ] as const;
 
   const caloriesLogged = mealsList.reduce((acc, m) => {
-    if (currentLog.completedMeals[m.key]) {
-      return acc + m.item.calories;
+    if (currentLog.completedMeals && currentLog.completedMeals[m.key]) {
+      return acc + (m.item?.calories || 0);
     }
     return acc;
   }, 0);
@@ -148,11 +144,11 @@ export function App() {
           workoutSetsDone={doneSets}
           workoutTotalSets={totalSets}
           caloriesLogged={caloriesLogged}
-          caloriesTarget={profile.targetCalories}
-          stepsLogged={currentLog.steps}
-          stepsTarget={profile.targetSteps}
-          waterMl={currentLog.waterMl}
-          waterTargetL={profile.targetWater}
+          caloriesTarget={profile?.targetCalories || 2200}
+          stepsLogged={safeStepsLogged}
+          stepsTarget={safeStepsTarget}
+          waterMl={safeWaterLogged}
+          waterTargetL={profile?.targetWater || 2.5}
         />
 
         {/* Tab Views */}

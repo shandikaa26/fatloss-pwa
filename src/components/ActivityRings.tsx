@@ -16,16 +16,16 @@ interface Props {
 }
 
 export const ActivityRings: React.FC<Props> = ({
-  workoutProgress,
-  mealProgress,
-  habitProgress,
-  workoutSetsDone,
-  workoutTotalSets,
-  caloriesLogged,
-  caloriesTarget,
-  stepsLogged,
-  waterMl,
-  waterTargetL,
+  workoutProgress = 0,
+  mealProgress = 0,
+  habitProgress = 0,
+  workoutSetsDone = 0,
+  workoutTotalSets = 15,
+  caloriesLogged = 0,
+  caloriesTarget = 2200,
+  stepsLogged = 0,
+  waterMl = 0,
+  waterTargetL = 2.5,
 }) => {
   // Proportional SVG Ring calculations (optimized for iPhone screen width)
   const size = 138;
@@ -35,22 +35,29 @@ export const ActivityRings: React.FC<Props> = ({
   // Ring 1 (Outer - Workout: Coral/Red)
   const r1 = 58;
   const c1 = 2 * Math.PI * r1;
-  const clampedProg1 = Math.max(0, Math.min(workoutProgress, 1));
+  const safeProg1 = isNaN(workoutProgress) ? 0 : workoutProgress;
+  const clampedProg1 = Math.max(0, Math.min(safeProg1, 1));
   const offset1 = c1 - clampedProg1 * c1;
 
   // Ring 2 (Middle - Meal/Calories: Neon Green)
   const r2 = 45;
   const c2 = 2 * Math.PI * r2;
-  const clampedProg2 = Math.max(0, Math.min(mealProgress, 1));
+  const safeProg2 = isNaN(mealProgress) ? 0 : mealProgress;
+  const clampedProg2 = Math.max(0, Math.min(safeProg2, 1));
   const offset2 = c2 - clampedProg2 * c2;
 
   // Ring 3 (Inner - Habits/Steps: Cyan)
   const r3 = 32;
   const c3 = 2 * Math.PI * r3;
-  const clampedProg3 = Math.max(0, Math.min(habitProgress, 1));
+  const safeProg3 = isNaN(habitProgress) ? 0 : habitProgress;
+  const clampedProg3 = Math.max(0, Math.min(safeProg3, 1));
   const offset3 = c3 - clampedProg3 * c3;
 
-  const totalAvgPercent = Math.round(((clampedProg1 + clampedProg2 + clampedProg3) / 3) * 100);
+  const totalAvgPercent = Math.round(((clampedProg1 + clampedProg2 + clampedProg3) / 3) * 100) || 0;
+
+  const safeSteps = typeof stepsLogged === 'number' && !isNaN(stepsLogged) ? stepsLogged : 0;
+  const safeWaterMl = typeof waterMl === 'number' && !isNaN(waterMl) ? waterMl : 0;
+  const safeWaterTargetL = typeof waterTargetL === 'number' && !isNaN(waterTargetL) ? waterTargetL : 2.5;
 
   return (
     <div className="glass-panel rounded-3xl p-4 sm:p-5 relative overflow-hidden border border-white/10 shadow-xl">
@@ -80,16 +87,16 @@ export const ActivityRings: React.FC<Props> = ({
           <svg width={size} height={size} className="transform -rotate-90">
             <defs>
               <linearGradient id="gradRed" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#ff3b30" />
-                <stop offset="100%" stop-color="#ff9500" />
+                <stop offset="0%" stopColor="#ff3b30" />
+                <stop offset="100%" stopColor="#ff9500" />
               </linearGradient>
               <linearGradient id="gradGreen" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#34c759" />
-                <stop offset="100%" stop-color="#30d158" />
+                <stop offset="0%" stopColor="#34c759" />
+                <stop offset="100%" stopColor="#30d158" />
               </linearGradient>
               <linearGradient id="gradCyan" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#00c7be" />
-                <stop offset="100%" stop-color="#0a84ff" />
+                <stop offset="0%" stopColor="#00c7be" />
+                <stop offset="100%" stopColor="#0a84ff" />
               </linearGradient>
             </defs>
 
@@ -178,7 +185,7 @@ export const ActivityRings: React.FC<Props> = ({
           </div>
         </div>
 
-        {/* Legend / Metrics List (No wrap or overlap) */}
+        {/* Legend / Metrics List */}
         <div className="flex-1 min-w-0 space-y-2">
           {/* Workout / Move */}
           <div className="bg-slate-900/60 border border-white/5 rounded-xl px-2.5 py-1.5 flex items-center space-x-2">
@@ -229,11 +236,11 @@ export const ActivityRings: React.FC<Props> = ({
                 </span>
               </div>
               <div className="text-[10px] text-slate-400 truncate flex items-center gap-1">
-                <span>{stepsLogged.toLocaleString()} lkg</span>
+                <span>{safeSteps.toLocaleString()} lkg</span>
                 <span>•</span>
                 <span className="flex items-center gap-0.5">
                   <Droplets className="w-2.5 h-2.5 text-cyan-400" />
-                  {(waterMl / 1000).toFixed(1)}/{waterTargetL}L
+                  {(safeWaterMl / 1000).toFixed(1)}/{safeWaterTargetL}L
                 </span>
               </div>
             </div>

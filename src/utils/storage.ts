@@ -9,7 +9,12 @@ const SELECTED_DAY_KEY = 'fatloss_selected_day_v1';
 export function getStoredProfile(): UserProfile {
   try {
     const raw = localStorage.getItem(PROFILE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        return { ...INITIAL_PROFILE, ...parsed };
+      }
+    }
   } catch (e) {
     console.error('Failed to load profile', e);
   }
@@ -47,21 +52,45 @@ export function createEmptyDayLog(dayNumber: number): DailyLog {
 }
 
 export function getStoredLogs(): Record<number, DailyLog> {
+  const defaultLogs: Record<number, DailyLog> = {};
+  for (let i = 1; i <= 7; i++) {
+    defaultLogs[i] = createEmptyDayLog(i);
+  }
+
   try {
     const raw = localStorage.getItem(LOGS_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      return parsed;
+      if (parsed && typeof parsed === 'object') {
+        const validated: Record<number, DailyLog> = {};
+        for (let i = 1; i <= 7; i++) {
+          const item = parsed[i] || {};
+          validated[i] = {
+            date: item.date || new Date().toISOString().split('T')[0],
+            dayNumber: i,
+            waterMl: typeof item.waterMl === 'number' ? item.waterMl : 0,
+            steps: typeof item.steps === 'number' ? item.steps : 0,
+            sleepHours: typeof item.sleepHours === 'number' ? item.sleepHours : 7.5,
+            fatigueRating: item.fatigueRating || 2,
+            sorenessRating: item.sorenessRating || 2,
+            completedMeals: {
+              breakfast: !!item.completedMeals?.breakfast,
+              lunch: !!item.completedMeals?.lunch,
+              snack: !!item.completedMeals?.snack,
+              dinner: !!item.completedMeals?.dinner,
+            },
+            completedExercises: item.completedExercises && typeof item.completedExercises === 'object' ? item.completedExercises : {},
+            workoutCompleted: !!item.workoutCompleted,
+            notes: item.notes || '',
+          };
+        }
+        return validated;
+      }
     }
   } catch (e) {
     console.error('Failed to load logs', e);
   }
 
-  // initialize default 7 days
-  const defaultLogs: Record<number, DailyLog> = {};
-  for (let i = 1; i <= 7; i++) {
-    defaultLogs[i] = createEmptyDayLog(i);
-  }
   return defaultLogs;
 }
 
@@ -76,11 +105,19 @@ export function saveLogs(logs: Record<number, DailyLog>): void {
 export function getStoredWeightHistory(): WeightRecord[] {
   try {
     const raw = localStorage.getItem(WEIGHT_HISTORY_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.map((item) => ({
+          date: item.date || 'Hari 1',
+          weight: typeof item.weight === 'number' ? item.weight : 70.0,
+          waist: typeof item.waist === 'number' ? item.waist : 78.0,
+        }));
+      }
+    }
   } catch (e) {
     console.error('Failed to load weight history', e);
   }
-  // Default starting record
   return [
     { date: 'Hari 1', weight: 70.0, waist: 78.0 }
   ];
@@ -112,8 +149,10 @@ export function saveSelectedDay(day: number): void {
 }
 
 export function resetAllData(): void {
-  localStorage.removeItem(PROFILE_KEY);
-  localStorage.removeItem(LOGS_KEY);
-  localStorage.removeItem(WEIGHT_HISTORY_KEY);
-  localStorage.removeItem(SELECTED_DAY_KEY);
+  try {
+    localStorage.removeItem(PROFILE_KEY);
+    localStorage.removeItem(LOGS_KEY);
+    localStorage.removeItem(WEIGHT_HISTORY_KEY);
+    localStorage.removeItem(SELECTED_DAY_KEY);
+  } catch {}
 }
